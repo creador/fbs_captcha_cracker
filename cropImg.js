@@ -3,6 +3,7 @@ const math = require('mathjs');
 const jpeg = require('jpeg-js');
 const colorConvert = require('color-convert');
 const deltaE = require('delta-e');
+const sharp = require('sharp');
 const fs = require('fs');
 
 const coreColor = { r: { L: 53, A: 80, B: 67 },
@@ -48,6 +49,15 @@ var getColorDiff =
     return deltaE.getDeltaE00(p1, p2);
 };
 
+var rbgaToBow = 
+(rawData, x, y) =>
+{
+    // var hsvVal = colorConvert.rgb.hsv.apply(null, getPixelRgb(rawData, i, j));
+    // rawData.data.writeUInt32BE((hsvVal[1] == 0)? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
+    var rgbVal = getPixelRgb(rawData, i, j);
+    rawData.data.writeUInt32BE((math.max.apply(null, rgbVal) - math.min.apply(null, rgbVal) <= 30)? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
+};
+
 var lastPercentage = -1;
 for (var sampleFN in traningSetList)
 {
@@ -76,9 +86,9 @@ for (var sampleFN in traningSetList)
                         ltrb[k][3] = math.max(ltrb[k][3], j);
                     }
                 }
+                rbgaToBow(rawImageData, i, j);
             }
         }
-        
 
         var charBuffer = [];
         for (var k in ltrb)
@@ -90,11 +100,19 @@ for (var sampleFN in traningSetList)
                     charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset, 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset, rawImageData.width - 1) + 1))]);
 
         for (var k in charBuffer)
-            fs.writeFileSync('training_set/' + k + '/' + traningSetList[sampleFN], jpeg.encode(charBuffer[k], 100).data, { encoding: 'binary' });
+        {
+            // fs.writeFileSync('training_set/' + k + '/' + traningSetList[sampleFN], jpeg.encode(charBuffer[k], 100).data, { encoding: 'binary' });
+            // fs.writeFileSync('training_set/all/' + traningSetList[sampleFN], jpeg.encode(charBuffer[k], 100).data, { encoding: 'binary' });
+            sharp(jpeg.encode(charBuffer[k], 100).data).resize(24, 24).png().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
+        }
 
         // console.log(ltrb);
     }
-    catch (e) {}
+    catch (e)
+    {
+        console.error(e);
+        break;
+    }
 
     var newPercentage = math.floor(sampleFN / traningSetList.length * 100);
     if (newPercentage != lastPercentage)
