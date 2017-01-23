@@ -1,19 +1,25 @@
 const http = require('https');
 const fs = require('fs');
 
-// var server =
-// http.createServer
-// (
-//     (req, res) =>
-//     {
-//         res.end();
-//     }
-// )
-// server.listen(8000);
+var ensureFolderExist = 
+(path) =>
+{
+    try
+    {
+        fs.mkdirSync(path);
+    }
+    catch (e)
+    {
+        if (e.code != 'EEXIST')
+            throw e;
+    }
+};
 
 var sendRequest = 
 (iterationCount) =>
 {
+    ensureFolderExist('training_set');
+    
     if (typeof iterationCount === 'number' && iterationCount)
     {
         var request = 
@@ -67,4 +73,18 @@ var sendRequest =
     }
 };
 
-sendRequest(50);
+var clearFiles = 
+function ()
+{
+    ensureFolderExist('training_set');
+
+    var fl = fs.readdirSync('training_set');
+    for (var i of fl)
+        if (/\./.test(i) && fs.existsSync('training_set/' + i))
+            fs.unlinkSync('training_set/' + i);
+};
+
+exports.download = sendRequest;
+exports.clearDownload = clearFiles;
+
+// sendRequest(1);

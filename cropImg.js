@@ -11,17 +11,24 @@ const coreColor = { r: { L: 53, A: 80, B: 67 },
                     br: { L: 36, A: 40, B: 48 },
                     bl: { L: 27, A: 70, B: -96 },
                     pi: { L: 59, A: 97, B: -60 },
-                    pu: { L: 47, A: 83, B: -82 } };
+                    pu: { L: 47, A: 81, B: -81 } };
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 
-const imgOffset = 2;
+const imgOffset = [ 2, 5 ];
 
-var traningSetList = fs.readdirSync('training_set');
-if (!traningSetList)
+var ensureFolderExist = 
+(path) =>
 {
-    console.error('No traning set');
-    process.exit();
-}
+    try
+    {
+        fs.mkdirSync(path);
+    }
+    catch (e)
+    {
+        if (e.code != 'EEXIST')
+            throw e;
+    }
+};
 
 var getPixelRgb = 
 (rawData, x, y) =>
@@ -52,72 +59,114 @@ var getColorDiff =
 var rbgaToBow = 
 (rawData, x, y) =>
 {
-    // var hsvVal = colorConvert.rgb.hsv.apply(null, getPixelRgb(rawData, i, j));
-    // rawData.data.writeUInt32BE((hsvVal[1] == 0)? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
-    var rgbVal = getPixelRgb(rawData, i, j);
-    rawData.data.writeUInt32BE((math.max.apply(null, rgbVal) - math.min.apply(null, rgbVal) <= 30)? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
+    var rgbVal = getPixelRgb(rawData, x, y);
+    rawData.data.writeUInt32BE((math.max.apply(null, rgbVal) - math.min.apply(null, rgbVal) <= 60)? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
 };
 
-var lastPercentage = -1;
-for (var sampleFN in traningSetList)
+var rbgaToBowByCC = 
+(rawData, x, y, coreColorKey) =>
 {
-    try
-    {
-        var jpegData = fs.readFileSync('training_set/' + traningSetList[sampleFN]);
-        var rawImageData = jpeg.decode(jpegData);
-        // console.log(rawImageData);
-        // console.log(getColorDiff(rawImageData, 141, 13, 143, 31));
+    var tempRgb = getPixelRgb(rawData, x, y);
+    rawData.data.writeUInt32BE((getColDistToCC(rawData, x, y, coreColorKey) > 25 && (tempRgb[0] || tempRgb[1] || tempRgb[2]))? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
+};
 
-        var ltrb = {};
-        for (var i in coreColor)
-            ltrb[i] = [Infinity, Infinity, -Infinity, -Infinity];
-        // TODO: crop it, move to another js file, prepare traning set
-        for (var i = 0; i < rawImageData.width; i++)
+var cropImage = 
+function ()
+{
+    ensureFolderExist('training_set');
+
+    var traningSetList = fs.readdirSync('training_set');
+    if (!traningSetList)
+    {
+        console.error('No traning set');
+        process.exit();
+    }
+
+    var lastPercentage = -1;
+    for (var sampleFN in traningSetList)
+    {
+        if (/\./.test(traningSetList[sampleFN]))
         {
-            for (var j = 0; j < rawImageData.height; j++)
+            // var matches = traningSetList[sampleFN].match(/(.+)\_(.+)/);
+
+            try
             {
-                for (var k in coreColor)
+                ensureFolderExist('training_set/' + traningSetList[sampleFN]);
+                // var jpegData = fs.readFileSync('training_set/' + matches[2]);
+                var jpegData = fs.readFileSync('training_set/' + traningSetList[sampleFN]);
+                var rawImageData = jpeg.decode(jpegData);
+                // console.log(rawImageData);
+                // console.log(getColorDiff(rawImageData, 141, 13, 143, 31));
+
+                var ltrb = {};
+                for (var i in coreColor)
+                    ltrb[i] = [Infinity, Infinity, -Infinity, -Infinity];
+                // TODO: crop it, move to another js file, prepare traning set
+                for (var i = 0; i < rawImageData.width; i++)
+                    for (var j = 0; j < rawImageData.height; j++)
+                        for (var k in coreColor)
+                            if (getColDistToCC(rawImageData, i, j, k) <= 6)
+                            {
+                                ltrb[k][0] = math.min(ltrb[k][0], i);
+                                ltrb[k][1] = math.min(ltrb[k][1], j);
+                                ltrb[k][2] = math.max(ltrb[k][2], i);
+                                ltrb[k][3] = math.max(ltrb[k][3], j);
+                            }
+
+                var charBuffer = [];
+                for (var k in ltrb)
+                    charBuffer[k] = { data: Buffer.alloc(0), width: (math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) - math.max(ltrb[k][0] - imgOffset[0], 0) + 1), height: (math.min(ltrb[k][3] + imgOffset[1], rawImageData.height - 1) - math.max(ltrb[k][1] - imgOffset[1], 0) + 1) };
+
+                for (var i = 0; i < rawImageData.height; i++)
+                    for (var k in ltrb)
+                        if (i >= math.max(0, ltrb[k][1] - imgOffset[1]) && i <= math.min(rawImageData.height - 1, ltrb[k][3] + imgOffset[1]))
+                            charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset[0], 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) + 1))]);
+                
+                for (var k in ltrb)
+                    for (var i = 0; i < charBuffer[k].height; i++)
+                        for (var j = 0; j < charBuffer[k].width; j++)
+                            rbgaToBowByCC(charBuffer[k], j, i, k);
+
+                ensureFolderExist('training_set/all');
+                for (var k in charBuffer)
                 {
-                    if (getColDistToCC(rawImageData, i, j, k) <= 6)
-                    {
-                        ltrb[k][0] = math.min(ltrb[k][0], i);
-                        ltrb[k][1] = math.min(ltrb[k][1], j);
-                        ltrb[k][2] = math.max(ltrb[k][2], i);
-                        ltrb[k][3] = math.max(ltrb[k][3], j);
-                    }
+                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(24, 24).png().ignoreAspectRatio().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
                 }
-                rbgaToBow(rawImageData, i, j);
+
+                // console.log(ltrb);
+            }
+            catch (e)
+            {
+                console.error(e);
+                break;
             }
         }
 
-        var charBuffer = [];
-        for (var k in ltrb)
-            charBuffer[k] = { data: Buffer.alloc(0), width: (math.min(ltrb[k][2] + imgOffset, rawImageData.width - 1) - math.max(ltrb[k][0] - imgOffset, 0) + 1), height: (math.min(ltrb[k][3] + imgOffset, rawImageData.height - 1) - math.max(ltrb[k][1] - imgOffset, 0) + 1) };
-
-        for (var i = 0; i < rawImageData.height; i++)
-            for (var k in ltrb)
-                if (i >= math.max(0, ltrb[k][1] - imgOffset) && i <= math.min(rawImageData.height - 1, ltrb[k][3] + imgOffset))
-                    charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset, 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset, rawImageData.width - 1) + 1))]);
-
-        for (var k in charBuffer)
-        {
-            // fs.writeFileSync('training_set/' + k + '/' + traningSetList[sampleFN], jpeg.encode(charBuffer[k], 100).data, { encoding: 'binary' });
-            // fs.writeFileSync('training_set/all/' + traningSetList[sampleFN], jpeg.encode(charBuffer[k], 100).data, { encoding: 'binary' });
-            sharp(jpeg.encode(charBuffer[k], 100).data).resize(24, 24).png().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
-        }
-
-        // console.log(ltrb);
-    }
-    catch (e)
-    {
-        console.error(e);
-        break;
+        var newPercentage = math.floor(sampleFN / traningSetList.length * 100);
+        if (newPercentage != lastPercentage)
+            console.log((lastPercentage = newPercentage) + '% finish!');
     }
 
-    var newPercentage = math.floor(sampleFN / traningSetList.length * 100);
-    if (newPercentage != lastPercentage)
-        console.log((lastPercentage = newPercentage) + '% finish!');
-}
+    var ltList = [];
+    for (var k in ltrb)
+        ltList.push([ ltrb[k][0], k ]);
+    ltList.sort((a, b) => (a[0] - b[0]));
 
-// console.log(colorConvert.rgb.lab.apply(null, [5, 5, 215]));
-console.log('All finish!');
+    console.log('All finish!');
+    return ltList;
+};
+
+var clearFiles = 
+function ()
+{
+    ensureFolderExist('training_set/all');
+    var fl = fs.readdirSync('training_set/all');
+    for (var i of fl)
+        if (/\./.test(i) && fs.existsSync('training_set/all/' + i))
+            fs.unlinkSync('training_set/all/' + i);
+};
+
+exports.cropImage = cropImage;
+exports.clearImg = clearFiles;
+
+// cropImage();
