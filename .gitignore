@@ -1,0 +1,4 @@
+training_set/*
+*.json
+!nn.json
+*.tmp
