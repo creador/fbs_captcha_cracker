@@ -122,15 +122,15 @@ function ()
                         if (i >= math.max(0, ltrb[k][1] - imgOffset[1]) && i <= math.min(rawImageData.height - 1, ltrb[k][3] + imgOffset[1]))
                             charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset[0], 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) + 1))]);
                 
-                for (var k in ltrb)
-                    for (var i = 0; i < charBuffer[k].height; i++)
-                        for (var j = 0; j < charBuffer[k].width; j++)
-                            rbgaToBowByCC(charBuffer[k], j, i, k);
+                // for (var k in ltrb)
+                //     for (var i = 0; i < charBuffer[k].height; i++)
+                //         for (var j = 0; j < charBuffer[k].width; j++)
+                //             rbgaToBowByCC(charBuffer[k], j, i, k);
 
                 ensureFolderExist('training_set/all');
                 for (var k in charBuffer)
                 {
-                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(24, 24).png().ignoreAspectRatio().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
+                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(28, 28).png().ignoreAspectRatio().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
                 }
 
                 // console.log(ltrb);

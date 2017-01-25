@@ -11,6 +11,7 @@ const downloadImg = require('./downloadImg.js');
 const charList = [ 'b', 'c', 'd', 'e', 'f','g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 
+// const trainMode = true;
 const trainMode = false;
 
 var ensureFolderExist = 
@@ -27,16 +28,13 @@ var ensureFolderExist =
     }
 };
 
-var imgBufToBoolArr = 
+var imgBufToRgbArr = 
 function (rawData)
 {
 	var retArr = [];
-	for (var i = 0; i < rawData.width; i++)
-		for (var j = 0; j < rawData.height; j++)
-			if (rawData.data[4 * (i + j * rawData.width)] <= 127)
-				retArr.push(1);
-			else
-				retArr.push(0);
+	for (var i = 0; i < rawData.width * rawData.height * 4; i++)
+		if ((i + 1) % 4)
+			retArr.push(rawData.data[i]);
 	return retArr;
 };
 
@@ -48,13 +46,13 @@ var layer_defs = [];
 // layer_defs.push({type:'pool', sx:2, stride:1});
 // layer_defs.push({type:'softmax', num_classes:13});
 
-layer_defs.push({type:'input', out_sx:24, out_sy:24, out_depth:1});
-layer_defs.push({type:'conv', sx:3, filters:18, stride:1, pad:1, activation:'relu'});
+layer_defs.push({type:'input', out_sx:28, out_sy:28, out_depth:3});
+layer_defs.push({type:'conv', sx:3, filters:24, stride:1, pad:1, activation:'relu'});
 layer_defs.push({type:'pool', sx:2, stride:2});
-layer_defs.push({type:'conv', sx:5, filters:28, stride:1, pad:2, activation:'relu'});
-layer_defs.push({type:'pool', sx:3, stride:2});
-layer_defs.push({type:'conv', sx:5, filters:28, stride:1, pad:2, activation:'relu'});
-layer_defs.push({type:'pool', sx:3, stride:2});
+layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'pool', sx:2, stride:2});
+layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'softmax', num_classes:charList.length});
 
 var net = new convnetjs.Net();
@@ -77,32 +75,16 @@ var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:5, l2
 
 ensureFolderExist('training_set');
 ensureFolderExist('training_set/all');
-ensureFolderExist('training_set/bool/');
-
-var fileList = [];
-for (var i in charList)
-{
-	ensureFolderExist('training_set/all/' + i);
-	fileList.push(fs.readdirSync('training_set/all/' + i));
-}
-
-for (var charIndex in charList)
-{
-	for (var fileIndex in fileList[charIndex])
-	{
-		ensureFolderExist('training_set/bool/' + charIndex);
-		if (!fs.existsSync('training_set/bool/' + charIndex + '/' + fileList[charIndex][fileIndex].match(/[^.]+/)[0]))
-			fs.writeFileSync('training_set/bool/' + charIndex + '/' + fileList[charIndex][fileIndex].match(/[^.]+/)[0], JSON.stringify(imgBufToBoolArr(jpeg.decode(fs.readFileSync('training_set/all/' + charIndex + '/' + fileList[charIndex][fileIndex])))), 'utf8');
-	}
-}
 
 var fileList = [], lengthList = [];
-var tempVol = new convnetjs.Vol(24, 24, 1, 0), testIndex = 0, errorCount = 0;
+
+var tempVol = new convnetjs.Vol(28, 28, 3, 0), testIndex = 0, errorCount = 0;
 if (trainMode)
 {
 	for (var i in charList)
 	{
-		fileList.push(fs.readdirSync('training_set/bool/' + i));
+		ensureFolderExist('training_set/all/' + i);
+		fileList.push(fs.readdirSync('training_set/all/' + i));
 		lengthList.push(fileList[i].length);
 	}
 
@@ -112,7 +94,7 @@ if (trainMode)
 	for (var i in charList)
 		indexList[i] = parseInt(i);
 
-	for (var i = 0; i < 5; i++)
+	for (var i = 0; i < 10; i++)
 	{
 		console.log('\n\n-> Round ' + (i + 1) + '\n\n');
 
@@ -124,8 +106,9 @@ if (trainMode)
 				if (fileIndex < fileList[indexList[ilIndex]].length)
 				{
 					tempVol.setConst(0);
-					tempVol.addFrom({ w: JSON.parse(fs.readFileSync('training_set/bool/' + indexList[ilIndex] + '/' + fileList[indexList[ilIndex]][fileIndex])) });
+					tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + indexList[ilIndex] + '/' + fileList[indexList[ilIndex]][fileIndex]))) });
 					var stat = trainer.train(tempVol, indexList[ilIndex]);
+					// console.log(stat.loss);
 				}
 			}
 		}
@@ -134,17 +117,19 @@ if (trainMode)
 		console.log('Loss: ', math.round(stat.loss, 8), ', time: ', stat.fwd_time, '/', stat.bwd_time, ' ms');
 	}
 
-	const testCount = 5000;
+	const testCount = 3000;
+	var result = null;
 	for (var i = 0; i < testCount; i++)
 	{
 		testIndex = math.randomInt(0, charList.length);
 		tempVol.setConst(0);
-		tempVol.addFrom({ w: JSON.parse(fs.readFileSync('training_set/bool/' + testIndex + '/' + fileList[testIndex][math.randomInt(0, fileList[testIndex].length)])) });
-		var result = net.forward(tempVol).w;
+		tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + testIndex + '/' + fileList[testIndex][math.randomInt(0, fileList[testIndex].length)]))) });
+		result = net.forward(tempVol).w;
 		if (result[testIndex] != math.max.apply(null, result))
 			errorCount++;
 	}
 	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '%');
+	console.log('Last result: \n', result);
 }
 else
 {
@@ -182,7 +167,7 @@ else
 								if (/\./.test(fileList[0][fileIndex]) && fileList[0][fileIndex].match('^' + i[1] + '_'))
 								{
 									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToBoolArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
+									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
 									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
 									finalString += charList[charIndex];
 									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
@@ -197,7 +182,7 @@ else
 								if (/\./.test(fileList[0][fileIndex]))
 								{
 									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToBoolArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
+									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
 									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
 									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
 									if (flag)
