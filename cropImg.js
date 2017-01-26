@@ -71,7 +71,7 @@ var rbgaToBowByCC =
 };
 
 var cropImage = 
-function ()
+function (saveToTest)
 {
     ensureFolderExist('training_set');
 
@@ -126,12 +126,10 @@ function ()
                 //     for (var i = 0; i < charBuffer[k].height; i++)
                 //         for (var j = 0; j < charBuffer[k].width; j++)
                 //             rbgaToBowByCC(charBuffer[k], j, i, k);
-
-                ensureFolderExist('training_set/all');
+                const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
+                ensureFolderExist(saveLocation);
                 for (var k in charBuffer)
-                {
-                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(28, 28).png().ignoreAspectRatio().toFile('training_set/all/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
-                }
+                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(28, 28).png().ignoreAspectRatio().toFile(saveLocation + '/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
 
                 // console.log(ltrb);
             }
@@ -157,13 +155,14 @@ function ()
 };
 
 var clearFiles = 
-function ()
+function (saveToTest)
 {
-    ensureFolderExist('training_set/all');
-    var fl = fs.readdirSync('training_set/all');
+    const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
+    ensureFolderExist(saveLocation);
+    var fl = fs.readdirSync(saveLocation);
     for (var i of fl)
-        if (/\./.test(i) && fs.existsSync('training_set/all/' + i))
-            fs.unlinkSync('training_set/all/' + i);
+        if (/\./.test(i) && fs.existsSync(saveLocation + '/' + i))
+            fs.unlinkSync(saveLocation + '/' + i);
 };
 
 exports.cropImage = cropImage;

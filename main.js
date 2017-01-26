@@ -7,12 +7,15 @@ const fs = require('fs');
 const cropImg = require('./cropImg.js');
 const downloadImg = require('./downloadImg.js');
 
-//                 0    1     2    3    4   5    6    7    8    9   10   11   12
-const charList = [ 'b', 'c', 'd', 'e', 'f','g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
+//                 0    1     2    3    4   5    6    7    8    9    10   11   12
+const charList = [ 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 
-// const trainMode = true;
-const trainMode = false;
+const trainMode = true;
+// const trainMode = false;
+
+// const saveToTest = true;
+const saveToTest = false;
 
 var ensureFolderExist = 
 (path) =>
@@ -94,7 +97,7 @@ if (trainMode)
 	for (var i in charList)
 		indexList[i] = parseInt(i);
 
-	for (var i = 0; i < 5; i++)
+	for (var i = 0; i < 10; i++)
 	{
 		console.log('\n\n-> Round ' + (i + 1) + '\n\n');
 
@@ -143,6 +146,7 @@ if (trainMode)
 else
 {
 	var timeout1 = 1, timeout2 = 1;
+	const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
 	if (fs.readdirSync('training_set').every((i) => { return !(/\./.test(i)); }))
 	{
 		downloadImg.download(1);
@@ -154,9 +158,9 @@ else
 		() =>
 		{
 			var flag = true, order = null;
-			if (fs.readdirSync('training_set/all').every((i) => { return !(/\./.test(i)); }))
+			if (fs.readdirSync(saveLocation).every((i) => { return !(/\./.test(i)); }))
 			{
-				order = cropImg.cropImage();
+				order = cropImg.cropImage(saveToTest);
 				flag = false;
 				timeout2 = 500;
 			}
@@ -166,7 +170,7 @@ else
 			(
 				() =>
 				{
-					fileList.push(fs.readdirSync('training_set/all'));
+					fileList.push(fs.readdirSync(saveLocation));
 					
 					if (order)
 					{
@@ -176,12 +180,12 @@ else
 								if (/\./.test(fileList[0][fileIndex]) && fileList[0][fileIndex].match('^' + i[1] + '_'))
 								{
 									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
+									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
 									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
 									finalString += charList[charIndex];
 									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
 									if (flag)
-										fs.writeFileSync('training_set/all/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync('training_set/all/' + fileList[0][fileIndex]), 'binary');
+										fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
 								}
 						console.log('Final string: ', finalString);
 					}
@@ -191,18 +195,18 @@ else
 								if (/\./.test(fileList[0][fileIndex]))
 								{
 									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + fileList[0][fileIndex]))) });
+									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
 									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
 									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
 									if (flag)
-										fs.writeFileSync('training_set/all/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync('training_set/all/' + fileList[0][fileIndex]), 'binary');
+										fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
 								}
 					}
 					
 					if (flag)
 					{
 						downloadImg.clearDownload();
-						cropImg.clearImg();
+						cropImg.clearImg(saveToTest);
 					}
 				},
 				timeout2
