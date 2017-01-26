@@ -47,12 +47,12 @@ var layer_defs = [];
 // layer_defs.push({type:'softmax', num_classes:13});
 
 layer_defs.push({type:'input', out_sx:28, out_sy:28, out_depth:3});
-layer_defs.push({type:'conv', sx:3, filters:24, stride:1, pad:1, activation:'relu'});
+layer_defs.push({type:'conv', sx:3, filters:12, stride:1, pad:1, activation:'relu'});
 layer_defs.push({type:'pool', sx:2, stride:2});
-layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'conv', sx:5, filters:18, stride:1, pad:2, activation:'relu'});
 layer_defs.push({type:'pool', sx:2, stride:2});
-layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
-layer_defs.push({type:'pool', sx:2, stride:2});
+// layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
+// layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'softmax', num_classes:charList.length});
 
 var net = new convnetjs.Net();
@@ -68,7 +68,7 @@ else
 	console.log('Make a new nn....');
 }
 
-var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:5, l2_decay:0.001});
+var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:20, l2_decay:0.001});
 // var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', momentum:0.9, batch_size:1, l2_decay:0.001});
 // var trainer = new convnetjs.Trainer(net, { method:'adadelta', learning_rate:0.02, momentum: 0.05, l2_decay:0.001 });
 
@@ -78,7 +78,7 @@ ensureFolderExist('training_set/all');
 
 var fileList = [], lengthList = [];
 
-var tempVol = new convnetjs.Vol(28, 28, 3, 0), testIndex = 0, errorCount = 0;
+var tempVol = new convnetjs.Vol(28, 28, 3, 0);
 if (trainMode)
 {
 	for (var i in charList)
@@ -94,7 +94,7 @@ if (trainMode)
 	for (var i in charList)
 		indexList[i] = parseInt(i);
 
-	for (var i = 0; i < 10; i++)
+	for (var i = 0; i < 5; i++)
 	{
 		console.log('\n\n-> Round ' + (i + 1) + '\n\n');
 
@@ -117,19 +117,28 @@ if (trainMode)
 		console.log('Loss: ', math.round(stat.loss, 8), ', time: ', stat.fwd_time, '/', stat.bwd_time, ' ms');
 	}
 
-	const testCount = 3000;
-	var result = null;
-	for (var i = 0; i < testCount; i++)
+	fileList = [];
+	var errorCount = 0, testCount = 0;
+	for (var i in charList)
 	{
-		testIndex = math.randomInt(0, charList.length);
-		tempVol.setConst(0);
-		tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + testIndex + '/' + fileList[testIndex][math.randomInt(0, fileList[testIndex].length)]))) });
-		result = net.forward(tempVol).w;
-		if (result[testIndex] != math.max.apply(null, result))
-			errorCount++;
+		ensureFolderExist('training_set/test/' + i);
+		fileList.push(fs.readdirSync('training_set/test/' + i));
+		testCount += fileList[i].length;
 	}
-	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '%');
+	var result = null;
+	for (var i in charList)
+	{
+		for (var j of fileList[i])
+		{
+			tempVol.setConst(0);
+			tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/test/' + i + '/' + j))) });
+			result = net.forward(tempVol).w;
+			if (result[i] != math.max.apply(null, result))
+				errorCount++;
+		}
+	}
 	console.log('Last result: \n', result);
+	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '%');
 }
 else
 {
