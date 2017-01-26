@@ -11,8 +11,8 @@ const downloadImg = require('./downloadImg.js');
 const charList = [ 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 
-const trainMode = true;
-// const trainMode = false;
+// const trainMode = true;
+const trainMode = false;
 
 // const saveToTest = true;
 const saveToTest = false;
@@ -149,7 +149,7 @@ else
 	const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
 	if (fs.readdirSync('training_set').every((i) => { return !(/\./.test(i)); }))
 	{
-		downloadImg.download(1);
+		downloadImg.downloadAndSave(1);
 		timeout1 = 500;
 	}
 
@@ -160,7 +160,7 @@ else
 			var flag = true, order = null;
 			if (fs.readdirSync(saveLocation).every((i) => { return !(/\./.test(i)); }))
 			{
-				order = cropImg.cropImage(saveToTest);
+				order = cropImg.cropImageAndSave(saveToTest);
 				flag = false;
 				timeout2 = 500;
 			}

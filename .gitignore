@@ -1,4 +1,5 @@
-training_set/*
-*.json
-!nn.json
+training_tools/training_set/*
+training_tools/*.json
+!training_tools/nn.json
+training_tools/*.tmp
 *.tmp

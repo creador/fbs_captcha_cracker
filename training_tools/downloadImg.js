@@ -28,7 +28,8 @@ var sendRequest =
             {
                 hostname: 'w6.ab.ust.hk',
                 path: '/fbs_user/Captcha.jpg?' + Math.random(),
-                method: 'GET'
+                method: 'GET',
+                headers: { 'Cookie': "jsessionid=2122221485440166406" }
             },
             (res) =>
             {
@@ -60,7 +61,7 @@ var sendRequest =
                         'error',
                         (e) =>
                         {
-                            console.error(e);
+                            throw e;
                         }
                     );
                 }
@@ -71,6 +72,60 @@ var sendRequest =
         request.setHeader('content-type', 'image/ipg');
         request.end();
     }
+};
+
+var sendRequest2 = 
+(cookie, cb) =>
+{
+    var request = 
+    http.request
+    (
+        {
+            hostname: 'w6.ab.ust.hk',
+            path: '/fbs_user/Captcha.jpg?' + Math.random(),
+            method: 'GET',
+            headers: { 'Cookie': cookie }
+        },
+        (res) =>
+        {
+            if (res.statusCode == 200) // HTTP OK
+            {
+                var data = [];
+
+                // res.setEncoding('binary');
+
+                res.on
+                (
+                    'data',
+                    (chunk) =>
+                    {
+                        data.push(chunk);
+                    }
+                );
+                res.on
+                (
+                    'end',
+                    () =>
+                    {
+                        // downloadCaptchaImg(data);
+                        cb(Buffer.concat(data));
+                    }
+                )
+                res.on
+                (
+                    'error',
+                    (e) =>
+                    {
+                        console.error(e);
+                    }
+                );
+            }
+            else
+                console.error("Request failed...");
+        }
+    );
+    request.setHeader('content-type', 'image/ipg');
+    request.end();
 };
 
 var clearFiles = 
@@ -84,7 +139,8 @@ function ()
             fs.unlinkSync('training_set/' + i);
 };
 
-exports.download = sendRequest;
+exports.downloadAndSave = sendRequest;
+exports.download = sendRequest2;
 exports.clearDownload = clearFiles;
 
 // sendRequest(1);
