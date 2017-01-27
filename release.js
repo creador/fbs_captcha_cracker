@@ -31,14 +31,14 @@ http.createServer
     {
         response.writeHead(200, { 'Content-Type': 'text/plain' });
         var qureyObj = url.parse(request.url, true).query;
-        console.log(qureyObj['cookie']); //jsessionid=2122221485440166406
+        console.log(qureyObj['cookie']);
 
         var net = new nn.Net(),
             tempVol = new nn.Vol(28, 28, 3, 0);
         if (fs.existsSync('./training_tools/nn.json') && typeof qureyObj['cookie'] !== 'undefined')
         {
             net.fromJSON(JSON.parse(fs.readFileSync('./training_tools/nn.json', 'utf8')));
-            console.log('Load from nn.json!!!');
+            // console.log('Load from nn.json!!!');
 
             new Promise
             (

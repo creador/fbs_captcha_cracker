@@ -184,8 +184,6 @@ function (buf)
                 if (i >= math.max(0, ltrb[k][1] - imgOffset[1]) && i <= math.min(rawImageData.height - 1, ltrb[k][3] + imgOffset[1]))
                     charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset[0], 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) + 1))]);
         
-        console.log('Finish', ltrb);
-
         return new Promise
         (
             (resolve, reject) =>
