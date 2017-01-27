@@ -135,8 +135,7 @@ function (saveToTest)
             }
             catch (e)
             {
-                console.error(e);
-                break;
+                throw e;
             }
         }
 
@@ -154,6 +153,81 @@ function (saveToTest)
     return ltList;
 };
 
+var cropImage2 = 
+function (buf)
+{
+    var lastPercentage = -1;
+    try
+    {
+        var rawImageData = jpeg.decode(buf);
+        var ltrb = {};
+        for (var i in coreColor)
+            ltrb[i] = [Infinity, Infinity, -Infinity, -Infinity];
+        // TODO: crop it, move to another js file, prepare traning set
+        for (var i = 0; i < rawImageData.width; i++)
+            for (var j = 0; j < rawImageData.height; j++)
+                for (var k in coreColor)
+                    if (getColDistToCC(rawImageData, i, j, k) <= 6)
+                    {
+                        ltrb[k][0] = math.min(ltrb[k][0], i);
+                        ltrb[k][1] = math.min(ltrb[k][1], j);
+                        ltrb[k][2] = math.max(ltrb[k][2], i);
+                        ltrb[k][3] = math.max(ltrb[k][3], j);
+                    }
+
+        var charBuffer = [];
+        for (var k in ltrb)
+            charBuffer[k] = { data: Buffer.alloc(0), width: (math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) - math.max(ltrb[k][0] - imgOffset[0], 0) + 1), height: (math.min(ltrb[k][3] + imgOffset[1], rawImageData.height - 1) - math.max(ltrb[k][1] - imgOffset[1], 0) + 1) };
+
+        for (var i = 0; i < rawImageData.height; i++)
+            for (var k in ltrb)
+                if (i >= math.max(0, ltrb[k][1] - imgOffset[1]) && i <= math.min(rawImageData.height - 1, ltrb[k][3] + imgOffset[1]))
+                    charBuffer[k].data = Buffer.concat([charBuffer[k].data, rawImageData.data.slice(4 * (i * rawImageData.width + math.max(ltrb[k][0] - imgOffset[0], 0)), 4 * (i * rawImageData.width + math.min(ltrb[k][2] + imgOffset[0], rawImageData.width - 1) + 1))]);
+        
+        console.log('Finish', ltrb);
+
+        return new Promise
+        (
+            (resolve, reject) =>
+            {
+                var lastPromise = null, allCharImg = [], k = 0;
+
+                allCharImg['order'] = [];
+                for (var k in ltrb)
+                    allCharImg['order'].push([ ltrb[k][0], k ]);
+                allCharImg['order'].sort((a, b) => (a[0] - b[0]));
+
+                var resize =
+                (i) =>
+                {
+                    if (i >= colorName.length)
+                    {
+                        resolve(allCharImg);
+                        return ;
+                    }
+                    sharp(jpeg.encode(charBuffer[colorName[i]], 100).data).resize(28, 28).ignoreAspectRatio().raw().toBuffer()
+                    .then
+                    (
+                        (charBuf) =>
+                        {
+                            allCharImg[colorName[i]] = charBuf;
+                            resize(i + 1);
+                        }
+                    );
+                };
+
+                resize(0);
+            }
+        );
+
+        // console.log(ltrb);
+    }
+    catch (e)
+    {
+        throw e;
+    }
+};
+
 var clearFiles = 
 function (saveToTest)
 {
@@ -165,7 +239,8 @@ function (saveToTest)
             fs.unlinkSync(saveLocation + '/' + i);
 };
 
-exports.cropImage = cropImage;
+exports.cropImageAndSave = cropImage;
+exports.cropImage = cropImage2;
 exports.clearImg = clearFiles;
 
 // cropImage();
