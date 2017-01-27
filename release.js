@@ -1,14 +1,19 @@
 const downloader = require('./training_tools/downloadImg.js');
 const cropper = require('./training_tools/cropImg.js');
 const nn = require('convnetjs');
-const jpegJs = require('jpeg-js');
 const http = require('http');
 const url = require('url');
 const fs = require('fs');
+const math = require('mathjs');
 
 //                 0    1     2    3    4   5    6    7    8    9    10   11   12
 const charList = [ 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
+
+//-------------------------------------------------
+// Config
+const port = 8080;
+//-------------------------------------------------
 
 var bufToArr = 
 function (rawData)
@@ -55,12 +60,10 @@ http.createServer
                         (charInfo) =>
                         {
                             var finalString = '';
-                            console.log(charInfo);
                             for (var color of charInfo['order'])
                             {
                                 tempVol.setConst(0);
                                 tempVol.addFrom({ w: bufToArr(charInfo[color[1]]) });
-                                console.log('GOod');
                                 var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
                                 finalString += charList[charIndex];
                             }
@@ -73,10 +76,11 @@ http.createServer
             );
         }
         else
-            throw new Error('Neural network not defined!');
+            response.end('Please give me your cookie :P');
+            // throw new Error('Neural network not defined!');
 
         // response.end('OK');
     }
 );
 
-server.listen(8080);
+server.listen(port);
