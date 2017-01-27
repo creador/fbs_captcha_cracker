@@ -33,6 +33,8 @@ http.createServer
         var qureyObj = url.parse(request.url, true).query;
         console.log(qureyObj['cookie']);
 
+        var lastTimestamp = Date.now();
+
         var net = new nn.Net(),
             tempVol = new nn.Vol(28, 28, 3, 0);
         if (fs.existsSync('./training_tools/nn.json') && typeof qureyObj['cookie'] !== 'undefined')
@@ -68,6 +70,7 @@ http.createServer
                                 finalString += charList[charIndex];
                             }
                             console.log(finalString);
+                            console.log('Time: ' + (Date.now() - lastTimestamp) + 'ms');
                             response.end(finalString);
                         }
                     );

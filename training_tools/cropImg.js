@@ -128,8 +128,38 @@ function (saveToTest)
                 //             rbgaToBowByCC(charBuffer[k], j, i, k);
                 const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
                 ensureFolderExist(saveLocation);
-                for (var k in charBuffer)
-                    sharp(jpeg.encode(charBuffer[k], 100).data).resize(28, 28).png().ignoreAspectRatio().toFile(saveLocation + '/' + k + '_' + traningSetList[sampleFN], (err, info) => { if (err) console.error(err); });
+                return new Promise
+                (
+                    (resolve, reject) =>
+                    {
+                        var ltList = [];
+                        for (var k in ltrb)
+                            ltList.push([ ltrb[k][0], k ]);
+                        ltList.sort((a, b) => (a[0] - b[0]));
+                        
+                        var resizeAndSave =
+                        (i) =>
+                        {
+                            if (i >= colorName.length)
+                            {
+                                console.log('All finish!');
+                                resolve(ltList);
+                                return ;
+                            }
+
+                            sharp(jpeg.encode(charBuffer[colorName[i]], 100).data).resize(28, 28).png().ignoreAspectRatio().toFile(saveLocation + '/' + colorName[i] + '_' + traningSetList[sampleFN])
+                            .then
+                            (
+                                (sth) =>
+                                {
+                                    resizeAndSave(i + 1);
+                                }
+                            );
+                        }
+                        resizeAndSave(0);
+                    }
+                );
+                
 
                 // console.log(ltrb);
             }
@@ -139,18 +169,10 @@ function (saveToTest)
             }
         }
 
-        var newPercentage = math.floor(sampleFN / traningSetList.length * 100);
-        if (newPercentage != lastPercentage)
-            console.log((lastPercentage = newPercentage) + '% finish!');
+    //     var newPercentage = math.floor(sampleFN / traningSetList.length * 100);
+    //     if (newPercentage != lastPercentage)
+    //         console.log((lastPercentage = newPercentage) + '% finish!');
     }
-
-    var ltList = [];
-    for (var k in ltrb)
-        ltList.push([ ltrb[k][0], k ]);
-    ltList.sort((a, b) => (a[0] - b[0]));
-
-    console.log('All finish!');
-    return ltList;
 };
 
 var cropImage2 = 
@@ -188,7 +210,7 @@ function (buf)
         (
             (resolve, reject) =>
             {
-                var lastPromise = null, allCharImg = [], k = 0;
+                var allCharImg = [];
 
                 allCharImg['order'] = [];
                 for (var k in ltrb)

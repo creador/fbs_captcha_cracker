@@ -16,7 +16,7 @@ var ensureFolderExist =
 };
 
 var sendRequest = 
-(iterationCount) =>
+(iterationCount, cb) =>
 {
     ensureFolderExist('training_set');
     
@@ -54,6 +54,7 @@ var sendRequest =
                         {
                             // downloadCaptchaImg(data);
                             fs.writeFile('./training_set/' + Date.now() + '.jpg', data, 'binary', (err) => { if (err) console.error(err); else console.log('File saved!'); setTimeout(() => { sendRequest(iterationCount - 1); }, 5000); });
+                            setTimeout(cb, 100);
                         }
                     )
                     res.on
@@ -143,4 +144,4 @@ exports.downloadAndSave = sendRequest;
 exports.download = sendRequest2;
 exports.clearDownload = clearFiles;
 
-// sendRequest(1);
+// sendRequest(50,() => {});

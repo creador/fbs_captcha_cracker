@@ -14,8 +14,8 @@ const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 // const trainMode = true;
 const trainMode = false;
 
-// const saveToTest = true;
-const saveToTest = false;
+const saveToTest = true;
+// const saveToTest = false;
 
 var ensureFolderExist = 
 (path) =>
@@ -53,7 +53,7 @@ layer_defs.push({type:'input', out_sx:28, out_sy:28, out_depth:3});
 layer_defs.push({type:'conv', sx:3, filters:12, stride:1, pad:1, activation:'relu'});
 layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'conv', sx:5, filters:18, stride:1, pad:2, activation:'relu'});
-layer_defs.push({type:'pool', sx:2, stride:2});
+layer_defs.push({type:'pool', sx:3, stride:3});
 // layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
 // layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'softmax', num_classes:charList.length});
@@ -78,6 +78,7 @@ var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:20, l
 
 ensureFolderExist('training_set');
 ensureFolderExist('training_set/all');
+ensureFolderExist('training_set/test');
 
 var fileList = [], lengthList = [];
 
@@ -103,7 +104,7 @@ if (trainMode)
 
 		for (var fileIndex = 0; fileIndex < maxLength; fileIndex++)
 		{
-			indexList.sort((a, b) => math.randomInt(-1, 2));
+			// indexList.sort((a, b) => math.randomInt(-1, 2));
 			for (var ilIndex in indexList)
 			{
 				if (fileIndex < fileList[indexList[ilIndex]].length)
@@ -141,77 +142,86 @@ if (trainMode)
 		}
 	}
 	console.log('Last result: \n', result);
-	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '%');
+	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '% (' + errorCount + ' in ' + testCount + ')');
 }
 else
 {
-	var timeout1 = 1, timeout2 = 1;
 	const saveLocation = 'training_set/' + ((saveToTest)? 'test' : 'all');
-	if (fs.readdirSync('training_set').every((i) => { return !(/\./.test(i)); }))
-	{
-		downloadImg.downloadAndSave(1);
-		timeout1 = 500;
-	}
 
-	setTimeout
+	new Promise
+	(
+		(resolve, reject) =>
+		{
+			if (fs.readdirSync('training_set').every((i) => { return !(/\./.test(i)); }))
+				downloadImg.downloadAndSave(1, () => resolve());
+			else
+				resolve();
+		}
+	)
+	.then
 	(
 		() =>
 		{
-			var flag = true, order = null;
+			console.log('OK');
 			if (fs.readdirSync(saveLocation).every((i) => { return !(/\./.test(i)); }))
+				return cropImg.cropImageAndSave(saveToTest);
+			else
+				return new Promise((resolve, reject) => resolve(null));
+		}
+	)
+	.then
+	(
+		(order) =>
+		{
+			var flag = (order == null);
+			fileList.push(fs.readdirSync(saveLocation));
+					
+			if (order)
 			{
-				order = cropImg.cropImageAndSave(saveToTest);
-				flag = false;
-				timeout2 = 500;
+				var finalString = '';
+				for (var i of order)
+					for (var fileIndex in fileList[0])
+						if (/\./.test(fileList[0][fileIndex]) && fileList[0][fileIndex].match('^' + i[1] + '_'))
+						{
+							tempVol.setConst(0);
+							tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
+							var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
+							finalString += charList[charIndex];
+							console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
+							if (flag)
+								fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
+						}
+				console.log('Final string: ', finalString);
 			}
-			// flag = false;
-
-			setTimeout
-			(
-				() =>
-				{
-					fileList.push(fs.readdirSync(saveLocation));
-					
-					if (order)
-					{
-						var finalString = '';
-						for (var i of order)
-							for (var fileIndex in fileList[0])
-								if (/\./.test(fileList[0][fileIndex]) && fileList[0][fileIndex].match('^' + i[1] + '_'))
-								{
-									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
-									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
-									finalString += charList[charIndex];
-									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
-									if (flag)
-										fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
-								}
-						console.log('Final string: ', finalString);
-					}
-					else
-					{
-						for (var fileIndex in fileList[0])
-								if (/\./.test(fileList[0][fileIndex]))
-								{
-									tempVol.setConst(0);
-									tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
-									var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
-									console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
-									if (flag)
-										fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
-								}
-					}
-					
-					if (flag)
-					{
-						downloadImg.clearDownload();
-						cropImg.clearImg(saveToTest);
-					}
-				},
-				timeout2
-			);
-		},
-		timeout1
+			else
+			{
+				for (var fileIndex in fileList[0])
+						if (/\./.test(fileList[0][fileIndex]))
+						{
+							tempVol.setConst(0);
+							tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]))) });
+							var result = net.forward(tempVol).w, charIndex = result.indexOf(math.max.apply(null, result));
+							console.log('File: ' + fileList[0][fileIndex] + '\n Result: ' + charList[charIndex] + '(' + charIndex + ')');
+							if (flag)
+							{
+								ensureFolderExist(saveLocation + '/' + charIndex);
+								fs.writeFileSync(saveLocation + '/' + charIndex + '/' + fileList[0][fileIndex], fs.readFileSync(saveLocation + '/' + fileList[0][fileIndex]), 'binary');
+							}
+						}
+			}
+			
+			if (flag)
+			{
+				downloadImg.clearDownload();
+				cropImg.clearImg(saveToTest);
+			}
+		}
+	)
+	.catch
+	(
+		(reason) =>
+		{
+			console.error(reason);
+		}
 	);
 }
