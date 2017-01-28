@@ -70,6 +70,27 @@ var rbgaToBowByCC =
     rawData.data.writeUInt32BE((getColDistToCC(rawData, x, y, coreColorKey) > 25 && (tempRgb[0] || tempRgb[1] || tempRgb[2]))? 0xFFFFFFFF : 0x000000FF, 4 * (x + y * rawData.width));
 };
 
+var getRegion = 
+function (buf)
+{
+    var rawImageData = jpeg.decode(buf);
+    var ltrb = {};
+    for (var i in coreColor)
+        ltrb[i] = [Infinity, Infinity, -Infinity, -Infinity];
+    // TODO: crop it, move to another js file, prepare traning set
+    for (var i = 0; i < rawImageData.width; i++)
+        for (var j = 0; j < rawImageData.height; j++)
+            for (var k in coreColor)
+                if (getColDistToCC(rawImageData, i, j, k) <= 6)
+                {
+                    ltrb[k][0] = math.min(ltrb[k][0], i);
+                    ltrb[k][1] = math.min(ltrb[k][1], j);
+                    ltrb[k][2] = math.max(ltrb[k][2], i);
+                    ltrb[k][3] = math.max(ltrb[k][3], j);
+                }
+    return ltrb;
+};
+
 var cropImage = 
 function (saveToTest)
 {
@@ -259,6 +280,7 @@ function (saveToTest)
             fs.unlinkSync(saveLocation + '/' + i);
 };
 
+exports.getRegion = getRegion;
 exports.cropImageAndSave = cropImage;
 exports.cropImage = cropImage2;
 exports.clearImg = clearFiles;

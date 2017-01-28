@@ -46,10 +46,10 @@ http.createServer
             (
                 (resolve, reject) =>
                 {
-                    downloader.download
+                    downloader.download(qureyObj['cookie'])
+                    .then
                     (
-                        qureyObj['cookie'],
-                        imgBuf => resolve(imgBuf)
+                        (imgBuf) => resolve(imgBuf)
                     );
                 }
             ).then

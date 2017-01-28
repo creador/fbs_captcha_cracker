@@ -11,8 +11,8 @@ const downloadImg = require('./downloadImg.js');
 const charList = [ 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'k', 'r', 's', 't', 'y', 'x' ];
 const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 
-// const trainMode = true;
-const trainMode = false;
+const trainMode = true;
+// const trainMode = false;
 
 // const saveToTest = true;
 const saveToTest = false;
@@ -53,7 +53,7 @@ layer_defs.push({type:'input', out_sx:28, out_sy:28, out_depth:3});
 layer_defs.push({type:'conv', sx:3, filters:12, stride:1, pad:1, activation:'relu'});
 layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'conv', sx:5, filters:18, stride:1, pad:2, activation:'relu'});
-layer_defs.push({type:'pool', sx:3, stride:3});
+layer_defs.push({type:'pool', sx:2, stride:2});
 // layer_defs.push({type:'conv', sx:5, filters:36, stride:1, pad:2, activation:'relu'});
 // layer_defs.push({type:'pool', sx:2, stride:2});
 layer_defs.push({type:'softmax', num_classes:charList.length});
@@ -167,7 +167,8 @@ else
 		(resolve, reject) =>
 		{
 			if (fs.readdirSync('training_set').every((i) => { return !(/\./.test(i)); }))
-				downloadImg.downloadAndSave(1, () => resolve());
+				downloadImg.downloadAndSave()
+				.then(() => resolve());
 			else
 				resolve();
 		}
