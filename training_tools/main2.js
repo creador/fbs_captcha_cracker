@@ -2,6 +2,7 @@ const convnetjs = require('convnetjs');
 const math = require('mathjs');
 const jpeg = require('jpeg-js');
 const fs = require('fs');
+const http = require('http');
 
 const cropImg = require('./cropImg.js');
 
@@ -44,31 +45,43 @@ var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:1, l2
 
 var tempVol = new convnetjs.Vol(175, 50, 3, 0), targetVal = [];
 var fileList = fs.readdirSync('training_set/cropping_test');
-// for (var file of fileList)
-// {
-//     var imgBuf = fs.readFileSync('training_set/cropping_test/' + file);
-for (var i = 0; i < 500; i++)
-{
-    var imgBuf = fs.readFileSync('training_set/cropping_test/' + fileList[i % 100]);
-    var region = cropImg.getRegion(imgBuf);
-    // targetVal = [];
-    // for (var color of colorName)
-    //     targetVal = targetVal.concat(region[color]);
-    tempVol.setConst(0);
-    tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(imgBuf)) });
-    var stat = trainer.train(tempVol, region['r']);
-    console.log(stat.loss);
-}
+var regionList = [];
+for (var file of fileList)
+    regionList.push(cropImg.getRegion(fs.readFileSync('training_set/cropping_test/' + file)));
 
-fs.writeFileSync('rnn.json', JSON.stringify(net.toJSON()), 'utf8');
+var stat = null;
+
+var server = 
+http.createServer
+(
+    (request, response) =>
+    {
+        response.writeHead(200, { 'Content-Type': 'text/plain' });
+        response.end('Loss: ' + stat.loss);
+    }
+);
+server.listen(7070);
+console.log('Start training...');
+
+while (!stat || stat.loss > 0.01)
+{
+    for (var fileIndex in fileList)
+    {
+        var imgBuf = fs.readFileSync('training_set/cropping_test/' + fileList[fileIndex]);
+        // targetVal = [];
+        // for (var color of colorName)
+        //     targetVal = targetVal.concat(region[color]);
+        tempVol.setConst(0);
+        tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(imgBuf)) });
+        stat = trainer.train(tempVol, regionList[fileIndex]['r']);
+    }
+
+    fs.writeFileSync('rnn.json', JSON.stringify(net.toJSON()), 'utf8');
+}
 console.log('Loss: ', math.round(stat.loss, 8), ', time: ', stat.fwd_time, '/', stat.bwd_time, ' ms');
 
 var imgBuf = fs.readFileSync('training_set/cropping_test/' + fileList[1]);
-var region = cropImg.getRegion(imgBuf);
-// targetVal = [];
-// for (var color of colorName)
-//     targetVal = targetVal.concat(region[color]);
 tempVol.setConst(0);
 tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(imgBuf)) });
 console.log(net.forward(tempVol).w);
-console.log(region['r']);
+console.log(regionList[1]['r']);
