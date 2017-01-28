@@ -14,8 +14,8 @@ const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 // const trainMode = true;
 const trainMode = false;
 
-const saveToTest = true;
-// const saveToTest = false;
+// const saveToTest = true;
+const saveToTest = false;
 
 var ensureFolderExist = 
 (path) =>
@@ -71,7 +71,7 @@ else
 	console.log('Make a new nn....');
 }
 
-var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:20, l2_decay:0.001});
+var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:30, l2_decay:0.001});
 // var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', momentum:0.9, batch_size:1, l2_decay:0.001});
 // var trainer = new convnetjs.Trainer(net, { method:'adadelta', learning_rate:0.02, momentum: 0.05, l2_decay:0.001 });
 
@@ -79,6 +79,7 @@ var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:20, l
 ensureFolderExist('training_set');
 ensureFolderExist('training_set/all');
 ensureFolderExist('training_set/test');
+ensureFolderExist('training_set/json');
 
 var fileList = [], lengthList = [];
 
@@ -98,8 +99,18 @@ if (trainMode)
 	for (var i in charList)
 		indexList[i] = parseInt(i);
 
+	for (var i in charList)
+	{
+		ensureFolderExist('training_set/json/' + i);
+		if (fs.readdirSync('training_set/json/' + i).length != lengthList[i])
+			for (var file of fileList[i])
+				if (!fs.existsSync('training_set/json/' + i + '/' + file))
+					fs.writeFileSync('training_set/json/' + i + '/' + file, JSON.stringify(imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + i + '/' + file)))));
+	}
+
 	for (var i = 0; i < 10; i++)
 	{
+		var lastTimestamp = Date.now();
 		console.log('\n\n-> Round ' + (i + 1) + '\n\n');
 
 		for (var fileIndex = 0; fileIndex < maxLength; fileIndex++)
@@ -110,15 +121,14 @@ if (trainMode)
 				if (fileIndex < fileList[indexList[ilIndex]].length)
 				{
 					tempVol.setConst(0);
-					tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/all/' + indexList[ilIndex] + '/' + fileList[indexList[ilIndex]][fileIndex]))) });
+					tempVol.addFrom({ w: JSON.parse(fs.readFileSync('training_set/json/' + indexList[ilIndex] + '/' + fileList[indexList[ilIndex]][fileIndex])) });
 					var stat = trainer.train(tempVol, indexList[ilIndex]);
-					// console.log(stat.loss);
 				}
 			}
 		}
 		
 		fs.writeFileSync('nn.json', JSON.stringify(net.toJSON()), 'utf8');
-		console.log('Loss: ', math.round(stat.loss, 8), ', time: ', stat.fwd_time, '/', stat.bwd_time, ' ms');
+		console.log('Loss: ', math.round(stat.loss, 8), ', time: ', stat.fwd_time, '/', stat.bwd_time, ' ms, total: ', Date.now() - lastTimestamp);
 	}
 
 	fileList = [];
@@ -129,7 +139,7 @@ if (trainMode)
 		fileList.push(fs.readdirSync('training_set/test/' + i));
 		testCount += fileList[i].length;
 	}
-	var result = null;
+	var result = null, errorFileList = [];
 	for (var i in charList)
 	{
 		for (var j of fileList[i])
@@ -138,11 +148,15 @@ if (trainMode)
 			tempVol.addFrom({ w: imgBufToRgbArr(jpeg.decode(fs.readFileSync('training_set/test/' + i + '/' + j))) });
 			result = net.forward(tempVol).w;
 			if (result[i] != math.max.apply(null, result))
+			{
 				errorCount++;
+				errorFileList.push(['training_set/test/' + i + '/' + j, charList[result.indexOf(math.max.apply(null, result))]]);
+			}
 		}
 	}
 	console.log('Last result: \n', result);
 	console.log('Correct rate: ' + (100.0 - errorCount / testCount * 100.0) + '% (' + errorCount + ' in ' + testCount + ')');
+	console.log('Error files: ', errorFileList);
 }
 else
 {

@@ -56,11 +56,17 @@ http.createServer
             (
                 (buf) =>
                 {
+                    console.log('Download: ', Date.now() - lastTimestamp);
+                    lastTimestamp = Date.now();
+
                     var charImg = cropper.cropImage(buf);
                     charImg.then
                     (
                         (charInfo) =>
                         {
+                            console.log('Crop: ', Date.now() - lastTimestamp);
+                            lastTimestamp = Date.now();cyxked
+
                             var finalString = '';
                             for (var color of charInfo['order'])
                             {
@@ -70,7 +76,7 @@ http.createServer
                                 finalString += charList[charIndex];
                             }
                             console.log(finalString);
-                            console.log('Time: ' + (Date.now() - lastTimestamp) + 'ms');
+                            console.log('Recognize: ' + (Date.now() - lastTimestamp) + 'ms');
                             response.end(finalString);
                         }
                     );
