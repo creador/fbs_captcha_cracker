@@ -65,7 +65,7 @@ http.createServer
                         (charInfo) =>
                         {
                             console.log('Crop: ', Date.now() - lastTimestamp);
-                            lastTimestamp = Date.now();cyxked
+                            lastTimestamp = Date.now();
 
                             var finalString = '';
                             for (var color of charInfo['order'])
