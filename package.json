@@ -1,0 +1,27 @@
+{
+  "name": "fbs_captcha_cracker",
+  "version": "1.0.0",
+  "description": "Only for HKUST FBS system",
+  "main": "release.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chunkitmax/fbs_captcha_cracker.git"
+  },
+  "author": "petel__",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chunkitmax/fbs_captcha_cracker/issues"
+  },
+  "homepage": "https://github.com/chunkitmax/fbs_captcha_cracker#readme",
+  "dependencies": {
+    "color-convert": "^1.9.0",
+    "convnetjs": "^0.3.0",
+    "delta-e": "0.0.7",
+    "jpeg-js": "^0.2.0",
+    "mathjs": "^3.9.0",
+    "sharp": "^0.17.1"
+  }
+}
