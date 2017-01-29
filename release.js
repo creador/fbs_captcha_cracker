@@ -15,7 +15,7 @@ const colorName = [ 'r', 'g', 'br', 'bl', 'pi', 'pu' ];
 const port = 8080;
 //-------------------------------------------------
 
-var bufToArr = 
+var bufToArr =
 function (rawData)
 {
 	var retArr = [];
@@ -24,7 +24,7 @@ function (rawData)
 	return retArr;
 };
 
-var server = 
+var server =
 http.createServer
 (
     (request, response) =>
@@ -93,3 +93,4 @@ http.createServer
 );
 
 server.listen(port);
+console.log("Server started at: http://localhost:" + port)
