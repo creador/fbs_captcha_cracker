@@ -4,3 +4,4 @@ training_tools/*.json
 !training_tools/nn.json
 training_tools/*.tmp
 *.tmp
+node_modules
