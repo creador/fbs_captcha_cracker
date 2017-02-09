@@ -3,7 +3,7 @@ Only for HKUST FBS system
 
 ##Prerequisite
 <ul>
-<li>Nodejs</li>
+<li>Nodejs (v7.x)</li>
 <ul>
 <li>mathjs</li>
 <li>color-convert</li>
